@@ -4,6 +4,8 @@ local opt = vim.opt
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+vim.g.autoformat = false
+
 vim.g.trouble_lualine = true
 vim.g.have_nerd_font = true
 
@@ -25,7 +27,7 @@ opt.spelllang = { 'en', 'de' }
 
 opt.smoothscroll = true
 opt.foldmethod = 'expr'
-opt.foldexpr = 'nvim_treesitter#foldexpr()'
+opt.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
 opt.foldenable = false
 -- opt.foldlevelstart = 2
 opt.fillchars = {
@@ -55,12 +57,8 @@ vim.o.sessionoptions = 'blank,buffers,curdir,folds,help,tabpages,winsize,winpos,
 -- Enable break indent
 vim.o.breakindent = true
 
--- Save undo history
-vim.o.undofile = true
-
 -- Case-insensitive searching UNLESS \C or one or more capital letters in the search term
 vim.o.ignorecase = true
-vim.o.smartcase = true
 
 -- Keep signcolumn on by default
 vim.o.signcolumn = 'yes'
@@ -78,9 +76,6 @@ vim.o.splitbelow = true
 -- Preview substitutions live, as you type!
 vim.o.inccommand = 'split'
 
--- Show which line your cursor is on
-vim.o.cursorline = true
-
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.o.scrolloff = 25
 
@@ -88,3 +83,6 @@ vim.o.scrolloff = 25
 -- instead raise a dialog asking if you wish to save the current file(s)
 -- See `:help 'confirm'`
 vim.o.confirm = true
+
+vim.opt.wildmode = "list:longest,full"
+vim.opt.wildoptions:append("fuzzy")

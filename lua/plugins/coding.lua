@@ -17,19 +17,18 @@ return {
     config = function(_, opts)
       require('luasnip').setup()
       require('luasnip.loaders.from_snipmate').lazy_load {}
+
+      vim.api.nvim_create_autocmd('ModeChanged', {
+        pattern = 'i:*',
+        group = vim.api.nvim_create_augroup('UnlinkLuaSnip', { clear = true }),
+        callback = function()
+          local luasnip = require 'luasnip'
+          if luasnip.session and luasnip.session.current_nodes[vim.api.nvim_get_current_buf()] and not luasnip.session.jump_active then
+            luasnip.unlink_current()
+          end
+        end,
+      })
     end,
-  },
-  {
-    'supermaven-inc/supermaven-nvim',
-    opts = {
-      -- disable_keymaps = true,
-      keymaps = {
-        accept_suggestion = '<Tab>',
-        accept_word = '<C-j>',
-        clear_suggestion = '<C-]>',
-      },
-      ignore_filetypes = { 'bigfile', 'snacks_input', 'snacks_notif', 'markdown' },
-    },
   },
   { -- Autocompletion
     'saghen/blink.cmp',
@@ -38,7 +37,6 @@ return {
     dependencies = {
       'L3MON4D3/LuaSnip',
       'folke/lazydev.nvim',
-      'supermaven-inc/supermaven-nvim',
       {
         'saghen/blink.compat',
         -- use v2.* for blink.cmp v1.*
@@ -63,7 +61,7 @@ return {
       completion = {
         -- By default, you may press `<c-space>` to show the documentation.
         -- Optionally, set `auto_show = true` to show the documentation after a delay.
-        documentation = { auto_show = false, auto_show_delay_ms = 500 },
+        documentation = { auto_show = true, auto_show_delay_ms = 500 },
         menu = {
           draw = {
             components = {
@@ -89,15 +87,17 @@ return {
       },
 
       sources = {
-        default = { 'lsp', 'path', 'snippets', 'lazydev', 'supermaven' },
+        default = { 'lsp', 'path', 'snippets', 'lazydev' },
         providers = {
-          lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
-          supermaven = {
-            name = 'supermaven',
-            module = 'blink.compat.source',
-            score_offset = 100,
-            async = true,
+          lsp = {
+            fallbacks = { 'buffer', 'snippets' },
+            score_offset = 0,
           },
+          snippets = {
+            score_offset = -100,
+          },
+          buffer = { score_offset = -50 },
+          lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
         },
       },
 
@@ -114,79 +114,40 @@ return {
 
       -- Shows a signature help window while you type arguments for a function
       signature = { enabled = true },
-
-      ghost_text = { enabled = true },
     },
   },
   -- Highlight todo, notes, etc in comments
-  { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+  {
+    'folke/todo-comments.nvim',
+    event = 'VimEnter',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    opts = { signs = false },
+    keys = {},
+    config = function()
+      vim.api.nvim_create_user_command('TodoShow', function()
+        require('snacks').picker.todo_comments { keywords = { 'TODO', 'FIX', 'FIXME' } }
+      end, { desc = 'Show TODO and FIXME comments' })
+    end,
+  },
   {
     'folke/trouble.nvim',
     opts = {}, -- for default options, refer to the configuration section for custom setup.
     cmd = 'Trouble',
-    keys = {
-      {
-        '<leader>xx',
-        '<cmd>Trouble diagnostics toggle<cr>',
-        desc = 'Diagnostics (Trouble)',
-      },
-      {
-        '<leader>xX',
-        '<cmd>Trouble diagnostics toggle filter.buf=0<cr>',
-        desc = 'Buffer Diagnostics (Trouble)',
-      },
-      {
-        '<leader>cs',
-        '<cmd>Trouble symbols toggle focus=false<cr>',
-        desc = 'Symbols (Trouble)',
-      },
-      {
-        '<leader>cl',
-        '<cmd>Trouble lsp toggle focus=false win.position=right<cr>',
-        desc = 'LSP Definitions / references / ... (Trouble)',
-      },
-      {
-        '<leader>xL',
-        '<cmd>Trouble loclist toggle<cr>',
-        desc = 'Location List (Trouble)',
-      },
-      {
-        '<leader>xQ',
-        '<cmd>Trouble qflist toggle<cr>',
-        desc = 'Quickfix List (Trouble)',
-      },
-    },
+    keys = {},
   },
   { -- Autoformat
     'stevearc/conform.nvim',
     event = { 'BufWritePre' },
     cmd = { 'ConformInfo' },
-    keys = {
-      {
-        '<leader>cf',
-        function()
-          require('conform').format { async = true, lsp_format = 'fallback' }
-        end,
-        mode = '',
-        desc = '[F]ormat buffer',
-      },
-    },
+    keys = {},
+    init = function()
+      require('config.commands').create('Format', function()
+        require('conform').format { async = true, lsp_format = 'fallback' }
+      end, { abbrev = 'fmt', desc = 'Format Buffer' })
+    end,
     opts = {
       notify_on_error = false,
-      format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
-        if disable_filetypes[vim.bo[bufnr].filetype] then
-          return nil
-        else
-          return {
-            timeout_ms = 500,
-            lsp_format = 'fallback',
-          }
-        end
-      end,
+      format_on_save = false,
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially

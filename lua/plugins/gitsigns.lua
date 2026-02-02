@@ -5,6 +5,35 @@
 return {
   {
     'lewis6991/gitsigns.nvim',
+    init = function()
+      local cmd = require 'config.commands'
+
+      cmd.create('GitStageHunk', function(o)
+        if o.range == 2 then
+          require('gitsigns').stage_hunk { o.line1, o.line2 }
+        else
+          require('gitsigns').stage_hunk()
+        end
+      end, { range = true, desc = 'Git stage hunk' })
+
+      cmd.create('GitResetHunk', function(o)
+        if o.range == 2 then
+          require('gitsigns').reset_hunk { o.line1, o.line2 }
+        else
+          require('gitsigns').reset_hunk()
+        end
+      end, { range = true, desc = 'Git reset hunk' })
+
+      cmd.create('GitStageBuffer', function() require('gitsigns').stage_buffer() end, { desc = 'Git stage buffer' })
+      cmd.create('GitUndoStage', function() require('gitsigns').undo_stage_hunk() end, { desc = 'Git undo stage hunk' })
+      cmd.create('GitResetBuffer', function() require('gitsigns').reset_buffer() end, { desc = 'Git reset buffer' })
+      cmd.create('GitPreviewHunk', function() require('gitsigns').preview_hunk() end, { desc = 'Git preview hunk' })
+      cmd.create('GitBlame', function() require('gitsigns').blame_line() end, { desc = 'Git blame line' })
+      cmd.create('GitDiff', function() require('gitsigns').diffthis() end, { desc = 'Git diff against index' })
+      cmd.create('GitDiffLast', function() require('gitsigns').diffthis '@' end, { desc = 'Git diff against last commit' })
+      cmd.create('GitToggleBlame', function() require('gitsigns').toggle_current_line_blame() end, { desc = 'Toggle git blame' })
+      cmd.create('GitToggleDeleted', function() require('gitsigns').preview_hunk_inline() end, { desc = 'Toggle git deleted' })
+    end,
     opts = {
       on_attach = function(bufnr)
         local gitsigns = require 'gitsigns'
@@ -15,8 +44,8 @@ return {
           vim.keymap.set(mode, l, r, opts)
         end
 
-        -- Navigation
-        map('n', ']c', function()
+        -- Navigation (bracket jumps)
+        map('n', ']h', function()
           if vim.wo.diff then
             vim.cmd.normal { ']c', bang = true }
           else
@@ -24,37 +53,13 @@ return {
           end
         end, { desc = 'Jump to next git [c]hange' })
 
-        map('n', '[c', function()
+        map('n', '[h', function()
           if vim.wo.diff then
             vim.cmd.normal { '[c', bang = true }
           else
             gitsigns.nav_hunk 'prev'
           end
         end, { desc = 'Jump to previous git [c]hange' })
-
-        -- Actions
-        -- visual mode
-        map('v', '<leader>hs', function()
-          gitsigns.stage_hunk { vim.fn.line '.', vim.fn.line 'v' }
-        end, { desc = 'git [s]tage hunk' })
-        map('v', '<leader>hr', function()
-          gitsigns.reset_hunk { vim.fn.line '.', vim.fn.line 'v' }
-        end, { desc = 'git [r]eset hunk' })
-        -- normal mode
-        map('n', '<leader>hs', gitsigns.stage_hunk, { desc = 'git [s]tage hunk' })
-        map('n', '<leader>hr', gitsigns.reset_hunk, { desc = 'git [r]eset hunk' })
-        map('n', '<leader>hS', gitsigns.stage_buffer, { desc = 'git [S]tage buffer' })
-        map('n', '<leader>hu', gitsigns.stage_hunk, { desc = 'git [u]ndo stage hunk' })
-        map('n', '<leader>hR', gitsigns.reset_buffer, { desc = 'git [R]eset buffer' })
-        map('n', '<leader>hp', gitsigns.preview_hunk, { desc = 'git [p]review hunk' })
-        map('n', '<leader>hb', gitsigns.blame_line, { desc = 'git [b]lame line' })
-        map('n', '<leader>hd', gitsigns.diffthis, { desc = 'git [d]iff against index' })
-        map('n', '<leader>hD', function()
-          gitsigns.diffthis '@'
-        end, { desc = 'git [D]iff against last commit' })
-        -- Toggles
-        map('n', '<leader>tb', gitsigns.toggle_current_line_blame, { desc = '[T]oggle git show [b]lame line' })
-        map('n', '<leader>tD', gitsigns.preview_hunk_inline, { desc = '[T]oggle git show [D]eleted' })
       end,
     },
   },

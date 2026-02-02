@@ -9,6 +9,11 @@
 return {
   -- NOTE: Yes, you can install new plugins here!
   'mfussenegger/nvim-dap',
+  init = function()
+    local cmd = require 'config.commands'
+    cmd.create('BreakpointToggle', function() require('dap').toggle_breakpoint() end, { abbrev = 'bpt', desc = 'Toggle breakpoint' })
+    cmd.create('BreakpointSet', function() require('dap').set_breakpoint(vim.fn.input 'Breakpoint condition: ') end, { abbrev = 'bps', desc = 'Set conditional breakpoint' })
+  end,
   -- NOTE: And you can specify dependencies as well
   dependencies = {
     -- Creates a beautiful debugger UI
@@ -20,9 +25,6 @@ return {
     -- Installs the debug adapters for you
     'mason-org/mason.nvim',
     'jay-babu/mason-nvim-dap.nvim',
-
-    -- Add your own debuggers here
-    'leoluz/nvim-dap-go',
   },
   keys = {
     -- Basic debugging keymaps, feel free to change to your liking!
@@ -53,20 +55,6 @@ return {
         require('dap').step_out()
       end,
       desc = 'Debug: Step Out',
-    },
-    {
-      '<leader>bp',
-      function()
-        require('dap').toggle_breakpoint()
-      end,
-      desc = 'Debug: Toggle [B]reak[p]oint',
-    },
-    {
-      '<leader>B',
-      function()
-        require('dap').set_breakpoint(vim.fn.input 'Breakpoint condition: ')
-      end,
-      desc = 'Debug: Set Breakpoint',
     },
     -- Toggle to see last session result. Without this, you can't see session output in case of unhandled exception.
     {
@@ -120,30 +108,25 @@ return {
       },
     }
 
-    -- Change breakpoint icons
-    -- vim.api.nvim_set_hl(0, 'DapBreak', { fg = '#e51400' })
-    -- vim.api.nvim_set_hl(0, 'DapStop', { fg = '#ffcc00' })
-    -- local breakpoint_icons = vim.g.have_nerd_font
-    --     and { Breakpoint = '', BreakpointCondition = '', BreakpointRejected = '', LogPoint = '', Stopped = '' }
-    --   or { Breakpoint = '●', BreakpointCondition = '⊜', BreakpointRejected = '⊘', LogPoint = '◆', Stopped = '⭔' }
-    -- for type, icon in pairs(breakpoint_icons) do
-    --   local tp = 'Dap' .. type
-    --   local hl = (type == 'Stopped') and 'DapStop' or 'DapBreak'
-    --   vim.fn.sign_define(tp, { text = icon, texthl = hl, numhl = hl })
-    -- end
+    local signs = {
+      DapBreakpoint = { text = '●', texthl = 'DapBreakpoint', linehl = '', numhl = '' },
+      DapBreakpointCondition = { text = '●', texthl = 'DapBreakpointCondition', linehl = '', numhl = '' },
+      DapLogPoint = { text = '◆', texthl = 'DapLogPoint', linehl = '', numhl = '' },
+      DapStopped = { text = '▶', texthl = 'DapStopped', linehl = 'DapStoppedLine', numhl = 'DapStoppedLine' },
+      DapBreakpointRejected = { text = '󰏤', texthl = 'DapBreakpointRejected', linehl = '', numhl = '' },
+    }
+
+    for name, config in pairs(signs) do
+      vim.fn.sign_define(name, config)
+    end
+    vim.api.nvim_set_hl(0, 'DapBreakpoint', { fg = '#e06c75' }) -- Red
+    vim.api.nvim_set_hl(0, 'DapBreakpointCondition', { fg = '#98c379' }) -- Green
+    vim.api.nvim_set_hl(0, 'DapStopped', { fg = '#61afef', bold = true }) -- Blue
+    vim.api.nvim_set_hl(0, 'DapStoppedLine', { bg = '#2c313c' }) -- Grey background for the current line
 
     dap.listeners.after.event_initialized['dapui_config'] = dapui.open
     dap.listeners.before.event_terminated['dapui_config'] = dapui.close
     dap.listeners.before.event_exited['dapui_config'] = dapui.close
-
-    -- Install golang specific config
-    require('dap-go').setup {
-      delve = {
-        -- On Windows delve must be run attached or it crashes.
-        -- See https://github.com/leoluz/nvim-dap-go/blob/main/README.md#configuring
-        detached = vim.fn.has 'win32' == 0,
-      },
-    }
 
     -- Configure the JavaScript/TypeScript adapter
     dap.adapters['pwa-node'] = {
@@ -156,6 +139,57 @@ return {
           require('mason-registry').get_package('js-debug-adapter'):get_install_path() .. '/js-debug/src/dapDebugServer.js',
           '${port}',
         },
+      },
+    }
+
+    dap.adapters['go'] = {
+      type = 'server',
+      port = '${port}',
+      executable = {
+        command = '/Users/lars.eppinger/go/bin/dlv',
+        args = { 'dap', '-l', '127.0.0.1:' .. '${port}' },
+        detached = vim.fn.has 'win32' == 0,
+        cwd = nil,
+      },
+      options = {
+        initialize_timeout_sec = 20,
+      },
+    }
+
+    dap.configurations.go = {
+      {
+        type = 'go',
+        name = 'Debug Project Entry Point',
+        request = 'launch',
+        program = function()
+          -- Search for any .go file containing 'package main'
+          -- This uses the shell 'grep' which is fast on Linux/Mac
+          local handle = io.popen "rg -l 'package main' **/*.go | head -n 1"
+          local result = handle:read '*a'
+          handle:close()
+
+          if result ~= '' then
+            -- Return the directory containing that file
+            return vim.fn.fnamemodify(result:gsub('%s+', ''), ':p:h')
+          end
+
+          -- Fallback: ask the user if grep fails
+          return vim.fn.input('Path to entry package: ', vim.fn.getcwd() .. '/', 'dir')
+        end,
+      },
+      {
+        type = 'go',
+        name = 'Debug test',
+        request = 'launch',
+        mode = 'test',
+        program = '${fileDirname}',
+      },
+      {
+        type = 'go',
+        name = 'Debug test (go.mod)',
+        request = 'launch',
+        mode = 'test',
+        program = './${relativeFileDirname}',
       },
     }
 

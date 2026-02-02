@@ -2,36 +2,17 @@ return {
   {
     'folke/persistence.nvim',
     event = 'BufReadPre',
+    cmd = { 'SessionRestore', 'SessionSelect', 'SessionRestoreLast', 'SessionStop' },
     opts = {},
-    keys = {
-      {
-        '<leader>qs',
-        function()
-          require('persistence').load()
-        end,
-        desc = 'Restore Session',
-      },
-      {
-        '<leader>qS',
-        function()
-          require('persistence').select()
-        end,
-        desc = 'Select Session',
-      },
-      {
-        '<leader>ql',
-        function()
-          require('persistence').load { last = true }
-        end,
-        desc = 'Restore Last Session',
-      },
-      {
-        '<leader>qd',
-        function()
-          require('persistence').stop()
-        end,
-        desc = "Don't Save Current Session",
-      },
-    },
+    keys = {},
+    config = function()
+      require('persistence').setup {}
+      local cmd = require 'config.commands'
+      cmd.create('SessionRestore', function() require('persistence').load() end, { desc = 'Restore Session' })
+      cmd.create('SessionSelect', function() require('persistence').select() end, { desc = 'Select Session' })
+      cmd.create('SessionRestoreLast', function() require('persistence').load { last = true } end, { desc = 'Restore Last Session' })
+      cmd.create('SessionStop', function() require('persistence').stop() end, { desc = 'Stop saving current session' })
+      cmd.create('SessionStart', function() require('persistence').start() end, { desc = 'Start saving current session' })
+    end,
   },
 }

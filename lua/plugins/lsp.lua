@@ -1,4 +1,5 @@
 return {
+  { 'towolf/vim-helm', ft = { 'helm', 'yaml' } },
   {
     -- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
     -- used for completion, annotations and signatures of Neovim apis
@@ -27,6 +28,7 @@ return {
       -- Allows extra capabilities provided by blink.cmp
       'saghen/blink.cmp',
     },
+    opts = { autoformat = false },
     config = function()
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
@@ -36,7 +38,9 @@ return {
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
           end
 
-          -- diagnostic
+          local cmd = require 'config.commands'
+
+          -- diagnostic navigation (bracket jumps)
           local diagnostic_goto = function(next, severity)
             local go = next and vim.diagnostic.goto_next or vim.diagnostic.goto_prev
             severity = severity and vim.diagnostic.severity[severity] or nil
@@ -45,22 +49,26 @@ return {
             end
           end
 
-          map('<leader>cd', vim.diagnostic.open_float, 'Line Diagnostics')
           map(']d', diagnostic_goto(true), 'Next Diagnostic')
           map('[d', diagnostic_goto(false), 'Prev Diagnostic')
           map(']e', diagnostic_goto(true, 'ERROR'), 'Next Error')
           map('[e', diagnostic_goto(false, 'ERROR'), 'Prev Error')
           map(']w', diagnostic_goto(true, 'WARN'), 'Next Warning')
           map('[w', diagnostic_goto(false, 'WARN'), 'Prev Warning')
-          map('<leader>cr', vim.lsp.buf.rename, '[R]ename')
-          map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ctions', { 'n', 'x' })
+
+          -- standard g-prefix keymaps
           map('gI', Snacks.picker.lsp_implementations, '[G]oto [I]mplementation')
           map('gd', Snacks.picker.lsp_definitions, '[G]oto [D]efinition')
           map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
-          map('<leader>ss', Snacks.picker.lsp_symbols, 'Open Symbols')
-          map('<leader>sS', Snacks.picker.lsp_workspace_symbols, 'Open Workspace Symbols')
           map('gt', Snacks.picker.lsp_type_definitions, '[G]oto [T]ype Definition')
           map('gr', Snacks.picker.lsp_references, '[G]oto [R]eferences')
+
+          -- commands (replacing leader keymaps)
+          cmd.create('LineDiagnostics', function() vim.diagnostic.open_float() end, { buffer = event.buf, abbrev = 'ld', desc = 'Line Diagnostics' })
+          cmd.create('Rename', function() vim.lsp.buf.rename() end, { buffer = event.buf, abbrev = 'rn', desc = 'LSP Rename' })
+          cmd.create('CodeAction', function() vim.lsp.buf.code_action() end, { buffer = event.buf, abbrev = 'ca', desc = 'Code Action' })
+          cmd.create('Symbols', function() Snacks.picker.lsp_symbols() end, { buffer = event.buf, abbrev = 'sym', desc = 'LSP Symbols' })
+          cmd.create('WorkspaceSymbols', function() Snacks.picker.lsp_workspace_symbols() end, { buffer = event.buf, abbrev = 'wsym', desc = 'Workspace Symbols' })
 
           -- This function resolves a difference between neovim nightly (version 0.11) and stable (version 0.10)
           ---@param client vim.lsp.Client
@@ -109,9 +117,9 @@ return {
           --
           -- This may be unwanted, since they displace some of your code
           if client and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_inlayHint, event.buf) then
-            map('<leader>th', function()
+            cmd.create('ToggleInlayHints', function()
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf })
-            end, '[T]oggle Inlay [H]ints')
+            end, { buffer = event.buf, abbrev = 'ih', desc = 'Toggle Inlay Hints' })
           end
         end,
       })
@@ -173,7 +181,6 @@ return {
         -- But for many setups, the LSP (`ts_ls`) will work just fine
         -- ts_ls = {},
         --
-
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },
@@ -185,6 +192,43 @@ return {
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
+            },
+          },
+        },
+        helm_ls = {
+          filetypes = { 'helm' },
+          settings = {
+            ['helm-ls'] = {
+              lint = { enable = true }, -- uses `helm lint` if Helm is installed
+              yamlls = {
+                enabled = true, -- feed rendered templates to yaml-language-server
+                config = {
+                  validate = true,
+                  hover = true,
+                  completion = true,
+                  schemaStore = { enable = true, url = 'https://www.schemastore.org/api/json/catalog.json' },
+                },
+              },
+            },
+          },
+        },
+        yamlls = {
+          on_attach = function(client, bufnr)
+            if vim.bo[bufnr].filetype == 'helm' then
+              client.stop()
+              return
+            end
+          end,
+          filetypes = { 'yaml', 'yaml.docker-compose' }, -- excludes ft=helm
+          settings = {
+            yaml = {
+              validate = true,
+              hover = true,
+              completion = true,
+              schemas = {
+                kubernetes = { 'values.yaml', 'values/*.yaml', '*/values.yaml' },
+              },
+              schemaStore = { enable = true, url = 'https://www.schemastore.org/api/json/catalog.json' },
             },
           },
         },
@@ -219,10 +263,16 @@ return {
             -- by the server configuration above. Useful when disabling
             -- certain features of an LSP (for example, turning off formatting for ts_ls)
             server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-            require('lspconfig')[server_name].setup(server)
+            -- require('lspconfig')[server_name].setup(server)
+            vim.lsp.config(server_name, server)
+            vim.lsp.enable(server_name)
           end,
         },
       }
+      return { autoformat = false }
     end,
+  },
+  {
+    'nvim-java/nvim-java',
   },
 }

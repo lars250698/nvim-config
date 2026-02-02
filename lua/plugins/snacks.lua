@@ -40,20 +40,6 @@ return {
     },
     keys = {
       {
-        '<leader>bd',
-        function()
-          Snacks.bufdelete()
-        end,
-        desc = 'Delete Buffer',
-      },
-      {
-        '<leader>bo',
-        function()
-          Snacks.bufdelete.other()
-        end,
-        desc = 'Delete all Buffers except Current',
-      },
-      {
         '<leader>/',
         function()
           Snacks.picker.grep()
@@ -69,46 +55,31 @@ return {
       },
       {
         '<leader>,',
-        function()
+        function ()
           Snacks.picker.buffers()
         end,
-        desc = 'Find Buffers',
+        desc = 'Find Buffers'
       },
       {
-        '<leader>fq',
-        function()
-          Snacks.picker.quickfix()
+        '<leader>:',
+        function ()
+          Snacks.picker.commands()
         end,
-        desc = 'Quickfix list',
-      },
-      {
-        '<leader>fd',
-        function()
-          Snacks.picker.diagnostics()
-        end,
-        desc = 'Diagnostics list',
-      },
-      {
-        '<leader>fs',
-        function()
-          Snacks.picker.search_history()
-        end,
-        desc = 'Search history',
-      },
-      {
-        '<leader>ft',
-        function()
-          Snacks.picker.treesitter()
-        end,
-        desc = 'Treesitter',
-      },
-      {
-        '<leader>fr',
-        function()
-          Snacks.picker.recent()
-        end,
-        desc = 'Recent',
-      },
+        desc = 'Find Commands'
+      }
     },
+    config = function(_, opts)
+      local snacks = require 'snacks'
+      snacks.setup(opts)
+
+      local cmd = require 'config.commands'
+      cmd.create('BufDelete', function() snacks.bufdelete() end, { abbrev = 'bdd', desc = 'Delete Buffer' })
+      cmd.create('BufOnly', function() snacks.bufdelete.other() end, { abbrev = 'bdo', desc = 'Delete all Buffers except Current' })
+      cmd.create('PickQuickfix', function() snacks.picker.qflist() end, { abbrev = 'pqf', desc = 'Quickfix list' })
+      cmd.create('PickDiagnostics', function() snacks.picker.diagnostics() end, { abbrev = 'diag', desc = 'Diagnostics list' })
+      cmd.create('SearchHistory', function() snacks.picker.search_history() end, { abbrev = 'she', desc = 'Search history' })
+      cmd.create('PickTreesitter', function() snacks.picker.treesitter() end, { abbrev = 'pts', desc = 'Treesitter picker' })
+      cmd.create('Recent', function() snacks.picker.recent() end, { abbrev = 'rec', desc = 'Recent files' })
+    end,
   },
 }

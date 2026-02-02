@@ -19,6 +19,25 @@ return {
     },
   },
 
+  {
+    'mbbill/undotree',
+    cmd = { 'UndotreeToggle' },
+    init = function()
+      require('config.commands').create('Undotree', function() vim.cmd.UndotreeToggle() end, { abbrev = 'ut', desc = 'Toggle undo tree' })
+    end,
+  },
+
+  {
+    'sindrets/diffview.nvim',
+    cmd = { 'DiffviewOpen', 'DiffviewFileHistory' },
+    init = function()
+      local cmd = require 'config.commands'
+      cmd.create('Dvo', function(o) vim.cmd('DiffviewOpen ' .. o.args) end, { nargs = '?', desc = 'Open diff view' })
+      cmd.create('Dvh', function(o) vim.cmd('DiffviewFileHistory ' .. o.args) end, { nargs = '?', desc = 'File history' })
+      cmd.create('Dvc', function() vim.cmd 'DiffviewClose' end, { desc = 'Close diff view' })
+    end,
+  },
+
   { -- Useful plugin to show you pending keybinds.
     'folke/which-key.nvim',
     event = 'VimEnter', -- Sets the loading event to 'VimEnter'
@@ -65,9 +84,7 @@ return {
 
       -- Document existing key chains
       spec = {
-        -- { '<leader>s', group = '[S]earch' },
-        { '<leader>t', group = '[T]oggle' },
-        { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+        { '<leader>h', group = '[H]arpoon' },
       },
     },
   },
